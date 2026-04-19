@@ -1,100 +1,466 @@
-# Paper Reading Note
-## 1. Paper Info
-* Title: Enabling Programmable Inference and ISAC
-at the 6GR Edge with dApps
+# 論文閱讀筆記
 
-* Authors: Michele Polese, Rajeev Gangula, Tommaso Melodia
-Institute for Intelligent Networked Systems, Northeastern University, Boston, MA, U.S.A.
-
-* Source (IEEE format): https://arxiv.org/abs/2603.29146
+## 1. 論文資訊
+* **題目**：Enabling Programmable Inference and ISAC at the 6GR Edge with dApps  
+* **作者**：Michele Polese, Rajeev Gangula, Tommaso Melodia
+* **單位**：Institute for Intelligent Networked Systems, Northeastern University, Boston, MA, U.S.A 
+* **來源（IEEE 格式）**：https://arxiv.org/abs/2603.29146  
 
 ---
 
-## 2. Reading Plan
+## 2. 問題定義（Introduction）
 
-* Total time: 2 hours
-* 0–20 min: Abstract + Introduction
-* 20–60 min: Method
-* 60–90 min: Results
-* 90–120 min: Summary + Slides
+### 論文要解決什麼問題？
 
----
+**答：**  
+解決「如何在 RAN（無線接取網路）基礎設施中，系統化整合推論（Inference）與感測（ISAC）」的問題。
 
-## 3. Checkpoints
+1. **動態生命週期管理問題**  
+   現有系統無法支援推論與 ISAC 演算法的動態部署與調整，  
+   而這些需求會隨時間與基地台位置改變。
 
-* [ ] Understand the problem
-* [ ] Understand why it is important
-* [ ] Understand the method
-* [ ] Can explain system model
-* [ ] Can discuss pros and cons
+2. **AI 驅動流水線不足**  
+   缺乏支援 AI 驅動 ISAC 所需的完整資料流程，  
+   包含資料收集、訓練、測試與部署。
 
----
-
-## 4. Problem (Introduction)
-
-* What problem does the paper solve?
-* Why is it important?
-* Why is it difficult?
+3. **資源配置缺乏彈性**  
+   現有系統無法在「通訊、感測、推論」三者之間  
+   進行即時且動態的資源分配。
 
 ---
 
-## 5. Existing Methods
+### 為什麼這個問題重要？
 
-* Method 1:
+1. **開拓新營收來源**  
+    6G 網路的設計背景與 5G 不同，營運商希望透過提供超越單純連網的服務  
+   （如環境感測與 AI 推理）來開啟新的收入流。
 
-  * Limitation:
-* Method 2:
+2. **經濟效益**  
+   ISAC 技術允許通訊與感測共享相同的空口（air interface）、頻譜與基礎  
+   設施，具有顯著的經濟優勢。
 
-  * Limitation:
-
----
-
-## 6. System Model
-
-* Input:
-* Output:
-* Assumptions:
-* Diagram:
+3. **網路優化**  
+    透過 AI 推論識別 RAN 數據中的結構與脈絡，可用於網路優化及增值服務。
 
 ---
 
-## 7. Proposed Method
+### 為什麼這個問題困難？
 
-* Key idea:
-* Why it works:
-* Metrics used:
+**答：**  
+作者識別了五大系統級挑戰，這也是實現可程式化 ISAC 的主要障礙：
+
+1. **即時實體層數據存取（Real-time PHY/MAC data access）:**  
+   感測演算法需要直接存取 I/Q 樣本、通道狀態資訊（CSI）和探測參考信號  
+   （SRS）。然而現有的 O-RAN 介面（如 E2）在頻寬與延遲上無法滿足感測  
+   所需的時間尺度。
+
+2. **AI 流水線（AI pipelines）:**  
+   AI 驅動的 ISAC 需要端到端的 MLOps（數據收集、訓練、驗證與  
+   部署），但目前的 RAN 生態系統尚未發展出完整且標準化的架構。
+
+3. **感測增強型無線電（ISAC-enhanced radios）:**  
+   不同的感測拓撲（如單站、雙站）對無線電單元（RU）有不同要求  
+   （如全雙工、同步、波束成形），架構必須能支援異質且可更換的 RU。
+
+4. **演算法生命週期管理（Algorithm life cycle）：**  
+  不同站點與時間的感測需求各異，架構必須支援像 xApps 一樣能動態  
+部署與更換演算法的能力。
+
+5. **動態堆疊與資源配置（Dynamic stack configuration）：**  
+   營運商需要在通訊與感測任務之間動態分配資源。由於感測與通訊共  
+   享硬體加速器（如 GPU），必須防止感測推論影響到即時通訊的運作。
+
+6. **多節點協調：**  
+    過去的研究多集中在單一節點，但在 RAN 層級進行多節點感測協調  
+   與數據融合仍是尚未解決的難題。
+---
+
+## 3. 現有方法（Existing Methods）
+
+目前針對通訊感測一體化（ISAC）與推論的解決方法主要集中在 3GPP 標準化、現有的 O-RAN 架構以及 5G NR 定位機制，但它們各自存在顯著的缺點：
 
 ---
 
-## 8. Results
+### 3GPP 標準化方法
 
-* How do they validate:
-* Improvement:
+**現狀：**  
+3GPP 已在 Release 19 定義 ISAC 使用場景與需求，  
+並於 Release 20 開始研究相關架構與資料暴露 API。
+
+**缺點：**
+ 目前的研究重心仍過度集中在波形設計（Waveform design）、通道  
+ 模型以及核心網整合，對於 RAN 層級的即時數據存取、多節點感測  
+ 協調以及演算法的生命週期管理仍缺乏深入探討。
+ 
+---
+
+### O-RAN 的控制迴路與介面 (xApps/rApps)
+
+**現狀：**  
+透過 Near-RT RIC（xApps）進行近即時控制，  
+以及 Non-RT RIC（rApps）進行策略管理與優化。
+
+**缺點：**
+
+1. **E2 介面限制**  
+   現有的 E2 介面是為「控制面遙測」設計的，  
+   不支援傳輸感測所需的用戶面 I/Q 數據流。
+
+2. **效能不足（延遲與頻寬）**  
+   針對感測所需的時間尺度（次毫秒級），E2 介面  
+   在頻寬與延遲上均無法滿足需求，尤其在需要匯  
+   聚多站點數據時更顯吃力。
+
+3. **缺乏動態部署能力**  
+   缺乏針對不同站點需求進行動態演算法配置與更  
+   新的能力。
 
 ---
 
-## 9. My Understanding
+### 現有 5G NR 定位機制
 
-* What I learned:
+**現狀：**  
+基地台（gNB）從 UE 訊號中提取定時測量值（如 UL-RTOA），  
+並回報給核心網中的定位功能（LMF）。
 
----
+**缺點：**
 
-## 10. My Questions
+1. **數據嚴重遺失**  
+   在實體層（PHY）處理邊界，會丟棄包含振幅、相位與多路徑  
+   結構的完整通道衝擊響應（CIR）數據，僅保留標量結果。
 
-* Question 1:
-* Question 2:
-
----
-
-## 11. My Ideas
-
-* Possible extension:
-* Tools to use (MATLAB / AI / simulation):
+2. **感測精度受限**  
+   這種「標量報告」方式無法進行跨觀察點的信號子空間處理，  
+   導致在多路徑環境或觀察次數較少時，感測精度大幅下降甚至失效。
 
 ---
 
-## 12. Validation
+### 現有學術研究方法
 
-* How I verify:
-* Is it reasonable:
+**現狀：**  
+已有研究探討在蜂巢式網路中整合感測功能。
+
+**缺點：**
+ 大多侷限於單節點拓撲或特定的波形設計，對於如何建立  
+ 端到端的 **AI 流水線（MLOps）**以及如何在共享硬體  
+ 基礎設施上動態平衡通訊與感測資源，仍缺乏完整的系統級解決方案。
+
+---
+
+## 4. 系統模型（System Model）
+
+### 論文如何定義問題（從系統架構角度）
+
+作者指出，現有 O-RAN 架構在支援 ISAC 時存在「數據與控制斷層」，  
+無法有效整合感測、推論與通訊功能。
+
+因此，問題被系統化定義為以下幾個核心挑戰：
+
+1. **數據獲取限制**  
+   現有 E2 介面無法傳輸即時 I/Q 樣本與 CSI，  
+   導致感測與 AI 推論缺乏關鍵原始數據。
+
+2. **模型生命週期管理不足**  
+   缺乏可依據不同場景（如室內、戶外）動態訓練、部署與更新模型的機制。
+
+3. **硬體適配問題**  
+   系統需支援多種無線電單元（RU），  
+   包含單站與多站（雙站）感測架構。
+
+4. **資源衝突問題**  
+   通訊與感測共享 GPU / NPU 等加速資源，  
+   需要避免彼此干擾並進行動態分配。
+
+---
+
+### 輸入（Inputs, I/P）
+
+系統運作所需的關鍵輸入包括：
+
+1. **實體層數據（PHY/MAC Data）**  
+   - I/Q 樣本  
+   - 通道狀態資訊（CSI）  
+   - 探測參考信號（SRS）
+
+2. **營運商意圖（Operator Intent）**  
+   - 例如：啟用無人機偵測、環境感測等服務
+
+3. **站點遙測資訊（Site Telemetry）**  
+   - 無線電配置  
+   - 計算資源（GPU / NPU 使用狀況）  
+   - 環境回饋資訊  
+
+4. **AI 訓練資料（Training Data）**  
+   - 用於模型訓練與更新的感測資料集  
+
+---
+
+### 輸出（Outputs, O/P）
+
+系統處理後產生的結果包括：
+
+1. **感測結果（Sensing Outputs）**  
+   - 目標偵測（如物體 / 無人機）  
+   - 測距與定位資訊  
+   - 頻譜感測結果  
+
+2. **多節點融合推論（Network-level Inference）**  
+   - 物體追蹤軌跡  
+   - 環境地圖  
+   - 事件偵測通知  
+
+3. **通訊優化回饋（Communication Optimization）**  
+   - 波束選擇（Beam Selection）  
+   - 通道估計改善  
+   - 排程最佳化  
+
+4. **模型生命週期產出（Model Outputs）**  
+   - 已訓練與驗證的 AI 模型  
+   - 存放於模型目錄（Model Catalog）供部署使用  
+
+---
+
+### 系統架構流程（System Architecture Flow）
+
+整體架構為一個分層式處理系統：
+
+#### 1. 邊緣層（Edge Layer：dApps + E3）
+- 位於 DU 附近  
+- 透過 E3 介面取得 I/Q 與 CSI  
+- 執行即時（sub-ms）推論與感測  
+
+#### 2. 控制層（Control Layer：xApps / rApps）
+- 負責多節點協調  
+- 執行資源分配與策略優化  
+- 輸出跨站點融合結果  
+
+#### 3. 編排層（Orchestration Layer：SMO + ISAC Orchestrator）
+- 負責模型與服務生命週期管理  
+- 根據營運商意圖部署 AI 模型  
+- 決定任務在哪些站點執行  
+
+---
+
+### 系統目標
+
+在共享 RAN 基礎設施下，同時達成：
+
+- 即時推論（Real-time Inference）  
+- 高精度感測（Accurate Sensing）  
+- 高效通訊（Efficient Communication）  
+
+### 簡化系統流程圖
+
+UE / 感測訊號  
+→ RAN（I/Q、CSI 收集）  
+→ Edge dApps（即時推論）  
+→ RIC（多節點融合）  
+→ SMO（模型部署）  
+→ 輸出（感測 + 推論 + 通訊優化）
+---
+
+## 5. 提出方法（Proposed Method）與效能驗證（Evaluation）
+
+### 作者提出什麼概念解決此問題？
+
+為了解決現有 O-RAN 架構在「即時數據存取」與「動態管理」上的不足，  
+作者提出一套以 **dApps 與 E3 介面為核心的層次化 ISAC 架構**：
+
+1. **dApps（分散式應用）**  
+   部署於 DU（Distributed Unit）旁的即時處理模組，  
+   可在 **亞毫秒（sub-ms）時間尺度**下直接存取實體層數據，  
+   用於即時推論與感測。
+
+2. **E3 介面（新介面設計）**  
+   專門用於傳輸高頻寬原始數據（I/Q、CSI、SRS），  
+   使 dApps 能直接取得完整訊號資訊，  
+   解決現有 E2 介面無法支援感測的問題。
+
+3. **層次化架構（Hierarchical Architecture）**
+
+   - **邊緣層（dApps）**  
+     執行即時感測與 AI 推論（低延遲）
+
+   - **控制層（xApps / rApps）**  
+     負責多節點資料融合與網路協調
+
+   - **編排層（ISAC Orchestrator / SMO）**  
+     負責模型生命週期管理（訓練、部署、更新）
+
+4. **動態堆疊配置（Dynamic Stack Configuration）**  
+   在 O-Cloud 上透過容器化或硬體分區，  
+   動態分配資源給通訊與感測任務，避免互相干擾。
+
+---
+
+### 用哪些效能指標證明問題已被解決？
+
+作者透過 **理論分析（CRLB） + 實驗驗證（5G Testbed）**，  
+使用以下指標證明系統有效性：
+
+---
+
+#### 1. 範圍與速度誤差（Range & Velocity RMSE）
+
+* 利用 **Cramér-Rao Lower Bound（CRLB）** 分析感測精度  
+* 結果顯示：  
+  - 當 E3 提供約 3 Gbps 數據時  
+  - 範圍誤差 < 0.2 m  
+  - 速度誤差 ≈ 5 m/s  
+
+👉 證明「高頻寬即時數據」對感測精度至關重要
+
+---
+
+#### 2. 範圍估計誤差分佈（Empirical CDF）
+
+* 比較：
+  - 傳統 5G 標量回報  
+  - dApps 子空間估計方法  
+
+* 結果：  
+  - dApps 方法在 **20 次觀測下 >90% 達到亞米級精度**  
+  - 傳統方法幾乎失效  
+
+👉 證明新架構在低觀測條件下仍具高準確度
+
+---
+
+#### 3. 感測數據開銷（Sensing Data-rate Overhead）
+
+* 衡量 E3 介面所需承載流量（Mbps / Gbps）  
+* 用於評估感測任務對通訊資源的影響  
+
+👉 證明透過本地處理（edge processing）可有效管理高流量數據
+
+---
+
+#### 4. 偵測性能（Detection Probability & False Alarm Rate）
+
+* 用於評估感測系統的可靠性  
+* 同時作為 **模型重新訓練與更新的觸發條件**
+
+👉 確保系統長期穩定運作
+
+---
+
+### 總結
+
+作者透過：
+
+- **新架構（dApps + E3 + 分層設計）**
+- **理論分析（CRLB）**
+- **實驗驗證（5G 平台）**
+
+證明其方法能：
+
+✔ 提升感測精度  
+✔ 降低延遲  
+✔ 支援即時 AI 推論  
+✔ 解決現有架構的系統限制  
+---
+
+## 6. 作者如何證明方法有效？
+
+作者透過 **理論分析（CRLB）** 與 **實際 5G 測試平台實驗**，  
+證明所提出的 dApps + E3 架構能有效解決：
+
+- 即時數據存取問題  
+- 感測精度不足問題  
+
+---
+
+### 1. 理論分析：單站感測（CRLB Analysis）
+
+**測試場景：**  
+- 目標：無人機  
+- 距離：500 m  
+- 速度：25 m/s  
+
+**分析重點：**  
+探討「數據傳輸量（E3 data rate）」與「感測精度（RMSE）」的關係  
+
+**結果：**
+
+- 300 Mbps → 範圍誤差約 **3.6 m**  
+- 3 Gbps → 範圍誤差降至 **0.2 m 以下**
+
+**結論：**
+
+- 感測精度與數據頻寬呈正相關  
+- 若沒有高頻寬即時數據（如 E3），無法達到高精度感測  
+- 感測必須在 **邊緣（DU 附近）進行**，不能外移  
+
+---
+
+### 2. 實驗驗證：測距 dApp（5G Testbed）
+
+**實驗平台：**  
+- OpenAirInterface（OAI）5G 測試平台  
+- 室內多路徑環境  
+
+---
+
+#### 比較方法
+
+**(1) 傳統 5G 方法：**
+- 僅回傳標量資訊（Peak detection）
+- 無完整訊號資訊  
+
+**(2) dApp 方法：**
+- 使用 E3 取得完整 CIR（含振幅 + 相位）  
+- 採用子空間估計演算法  
+
+---
+
+#### 實驗結果（CDF 分析）
+
+- dApp 方法：  
+  - 在 20 次觀測（M=20）下  
+  - **>90% 達到亞米級（<1m）精度**
+
+- 傳統方法：  
+  - 在相同條件下幾乎完全失效  
+
+---
+
+#### 關鍵發現
+
+1. **完整數據的重要性**  
+   傳統方法丟棄相位與振幅資訊，  
+   導致精度無法提升（不可逆資訊損失）
+
+2. **增加觀測次數無法補救**  
+   即使傳統方法增加到 M=60，效果仍有限  
+
+---
+
+### 3. 總結（Key Findings）
+
+作者成功證明：
+
+1. **E3 介面的必要性**  
+   高精度感測需要 Gbps 等級即時數據  
+   → 只有 E3 能提供  
+
+2. **dApp 架構的優越性**  
+   可在邊緣直接處理完整 PHY 數據  
+   → 感測效能大幅提升  
+
+3. **突破傳統架構限制**  
+   傳統 E2 + 標量回報方法無法達成此精度  
+
+---
+
+### 最終結論
+
+所提出方法能：
+
+✔ 提供即時高頻寬數據存取  
+✔ 顯著提升感測精度（sub-meter）  
+✔ 支援可程式化 ISAC 系統  
+
+→ 成功解決論文所提出的核心問題 
+
+---
 
