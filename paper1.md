@@ -4,7 +4,9 @@
 * **題目**：Enabling Programmable Inference and ISAC at the 6GR Edge with dApps  
 * **作者**：Michele Polese, Rajeev Gangula, Tommaso Melodia
 * **單位**：Institute for Intelligent Networked Systems, Northeastern University, Boston, MA, U.S.A 
-* **來源（IEEE 格式）**：https://arxiv.org/abs/2603.29146  
+* **來源（IEEE 格式）**：M. Polese, R. Gangula, and T. Melodia,
+“Enabling Programmable Inference and ISAC at the 6GR Edge with dApps,”
+[arXiv preprint arXiv:2603.29146](https://arxiv.org/abs/2603.29146), 2026.  
 
 ---
 
@@ -13,7 +15,7 @@
 ### 論文要解決什麼問題？
 
 **答：**  
-解決「如何在 RAN（無線接取網路）基礎設施中，系統化整合推論（Inference）與感測（ISAC）」的問題。
+解決「如何在現有 O-RAN 架構下，實現可程式化（programmable）的推論與 ISAC 系統」的問題。
 
 1. **動態生命週期管理問題**  
    現有系統無法支援推論與 ISAC 演算法的動態部署與調整，  
@@ -47,32 +49,29 @@
 ### 為什麼這個問題困難？
 
 **答：**  
-作者識別了五大系統級挑戰，這也是實現可程式化 ISAC 的主要障礙：
+傳統架構缺乏以下關鍵能力，導致作者認為在舊架構上實現即時感測是「在架構上不可行的（architecturally infeasible）」：
 
 1. **即時實體層數據存取（Real-time PHY/MAC data access）:**  
    感測演算法需要直接存取 I/Q 樣本、通道狀態資訊（CSI）和探測參考信號  
    （SRS）。然而現有的 O-RAN 介面（如 E2）在頻寬與延遲上無法滿足感測  
    所需的時間尺度。
 
-2. **AI 流水線（AI pipelines）:**  
+2. **缺乏 AI 研發流水線（AI pipelines））:**  
    AI 驅動的 ISAC 需要端到端的 MLOps（數據收集、訓練、驗證與  
-   部署），但目前的 RAN 生態系統尚未發展出完整且標準化的架構。
+   部署），但目前的 RAN 生態系統尚未在開放且標準化的框架中發展出這些能力。
 
 3. **感測增強型無線電（ISAC-enhanced radios）:**  
    不同的感測拓撲（如單站、雙站）對無線電單元（RU）有不同要求  
    （如全雙工、同步、波束成形），架構必須能支援異質且可更換的 RU。
 
 4. **演算法生命週期管理（Algorithm life cycle）：**  
-  不同站點與時間的感測需求各異，架構必須支援像 xApps 一樣能動態  
-部署與更換演算法的能力。
+  感測應用隨站點（如鄉村 vs. 室內）與時間而異，架構必須能支援像  
+xApps/rApps 一樣動態部署與更換演算法
 
 5. **動態堆疊與資源配置（Dynamic stack configuration）：**  
    營運商需要在通訊與感測任務之間動態分配資源。由於感測與通訊共  
    享硬體加速器（如 GPU），必須防止感測推論影響到即時通訊的運作。
 
-6. **多節點協調：**  
-    過去的研究多集中在單一節點，但在 RAN 層級進行多節點感測協調  
-   與數據融合仍是尚未解決的難題。
 ---
 
 ## 3. 現有方法（Existing Methods）
@@ -267,14 +266,12 @@ UE / 感測訊號
 作者提出一套以 **dApps 與 E3 介面為核心的層次化 ISAC 架構**：
 
 1. **dApps（分散式應用）**  
-   部署於 DU（Distributed Unit）旁的即時處理模組，  
-   可在 **亞毫秒（sub-ms）時間尺度**下直接存取實體層數據，  
-   用於即時推論與感測。
+   部署於 DU（Distributed Unit）旁的即時處理模組，可在 **亞毫秒  
+   （sub-ms）時間尺度**下直接存取實體層數據，用於即時推論與感測。
 
 2. **E3 介面（新介面設計）**  
-   專門用於傳輸高頻寬原始數據（I/Q、CSI、SRS），  
-   使 dApps 能直接取得完整訊號資訊，  
-   解決現有 E2 介面無法支援感測的問題。
+   專門用於傳輸高頻寬原始數據（I/Q、CSI、SRS），使 dApps 能直接  
+   取得完整訊號資訊，解決現有 E2 介面無法支援感測的問題。
 
 3. **層次化架構（Hierarchical Architecture）**
 
@@ -285,11 +282,12 @@ UE / 感測訊號
      負責多節點資料融合與網路協調
 
    - **編排層（ISAC Orchestrator / SMO）**  
-     負責模型生命週期管理（訓練、部署、更新）
+     於 SMO 中，負責模型生命週期管理（訓練、部署、更新），
+     包含集中式訓練與意圖驅動的模型部署。
 
 4. **動態堆疊配置（Dynamic Stack Configuration）**  
-   在 O-Cloud 上透過容器化或硬體分區，  
-   動態分配資源給通訊與感測任務，避免互相干擾。
+   在 O-Cloud 上透過容器化或硬體分區，動態分配資源給  
+   通訊與感測任務，避免互相干擾。
 
 ---
 
@@ -302,7 +300,8 @@ UE / 感測訊號
 
 #### 1. 範圍與速度誤差（Range & Velocity RMSE）
 
-* 利用 **Cramér-Rao Lower Bound（CRLB）** 分析感測精度  
+* 利用 **Cramér-Rao Lower Bound（CRLB）** 分析感測精度，  
+  感測精度與數據傳輸量直接相關。  
 * 結果顯示：  
   - 當 E3 提供約 3 Gbps 數據時  
   - 範圍誤差 < 0.2 m  
@@ -316,10 +315,10 @@ UE / 感測訊號
 
 * 比較：
   - 傳統 5G 標量回報  
-  - dApps 子空間估計方法  
+  - 基於 dApps 子空間估計方法  
 
 * 結果：  
-  - dApps 方法在 **20 次觀測下 >90% 達到亞米級精度**  
+  - dApps 方法在 **20 次觀測下，超過 90% 的估計能達到亞米級 (sub-meter) 精度**  
   - 傳統方法幾乎失效  
 
 👉 證明新架構在低觀測條件下仍具高準確度
@@ -335,7 +334,7 @@ UE / 感測訊號
 
 ---
 
-#### 4. 偵測性能（Detection Probability & False Alarm Rate）
+#### 4. 偵測概率與虛警率（Detection Probability & False Alarm Rate）
 
 * 用於評估感測系統的可靠性  
 * 同時作為 **模型重新訓練與更新的觸發條件**
@@ -373,17 +372,18 @@ UE / 感測訊號
 ### 1. 理論分析：單站感測（CRLB Analysis）
 
 **測試場景：**  
-- 目標：無人機  
+- 目標：偵測無人機  
 - 距離：500 m  
 - 速度：25 m/s  
 
 **分析重點：**  
+針對「單站全雙工感測」(Monostatic dApp) 進行了 Cramér-Rao 下界 (CRLB) 分析，  
 探討「數據傳輸量（E3 data rate）」與「感測精度（RMSE）」的關係  
 
 **結果：**
 
-- 300 Mbps → 範圍誤差約 **3.6 m**  
-- 3 Gbps → 範圍誤差降至 **0.2 m 以下**
+- 數據在 300 Mbps → 範圍誤差約 **3.6 m**  
+- 提升至 3 Gbps → 範圍誤差降至 **0.2 m 以下**
 
 **結論：**
 
@@ -395,20 +395,23 @@ UE / 感測訊號
 
 ### 2. 實驗驗證：測距 dApp（5G Testbed）
 
+在基於 OpenAirInterface (OAI) 的 5G 測試平台上實作了一個「測距 dApp」，並在  
+充滿多路徑干擾的室內環境中進行測試。
+
 **實驗平台：**  
 - OpenAirInterface（OAI）5G 測試平台  
-- 室內多路徑環境  
+- 室內多路徑干擾的環境  
 
 ---
 
 #### 比較方法
 
 **(1) 傳統 5G 方法：**
-- 僅回傳標量資訊（Peak detection）
+- 僅回傳標量資訊，如峰值偵測結果（Peak detection）給核心網的 LMF
 - 無完整訊號資訊  
 
 **(2) dApp 方法：**
-- 使用 E3 取得完整 CIR（含振幅 + 相位）  
+- 使用 E3 介面獲取完整的複數值通道衝擊響應 CIR（含振幅 + 相位）  
 - 採用子空間估計演算法  
 
 ---
@@ -417,7 +420,7 @@ UE / 感測訊號
 
 - dApp 方法：  
   - 在 20 次觀測（M=20）下  
-  - **>90% 達到亞米級（<1m）精度**
+  - **超過 90% 的情況下達到亞米級（<1m）精度**
 
 - 傳統方法：  
   - 在相同條件下幾乎完全失效  
