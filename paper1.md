@@ -148,114 +148,141 @@ xApps/rApps 一樣動態部署與更換演算法
 
 ## 4. 系統模型（System Model）
 
-### 論文如何定義問題（從系統架構角度）
+#### 1. 問題的系統化定義（Problem Formulation）
 
-作者指出，現有 O-RAN 架構在支援 ISAC 時存在「數據與控制斷層」，  
-無法有效整合感測、推論與通訊功能。
+在傳統 5G 與 O-RAN 架構中，RAN 的資料處理流程為：
 
-因此，問題被系統化定義為以下幾個核心挑戰：
+UE → gNB → PHY Processing → Feature Extraction → Core Network
 
-1. **數據獲取限制**  
-   現有 E2 介面無法傳輸即時 I/Q 樣本與 CSI，  
-   導致感測與 AI 推論缺乏關鍵原始數據。
 
-2. **模型生命週期管理不足**  
-   缺乏可依據不同場景（如室內、戶外）動態訓練、部署與更新模型的機制。
+然而，此架構存在以下關鍵限制：
 
-3. **硬體適配問題**  
-   系統需支援多種無線電單元（RU），  
-   包含單站與多站（雙站）感測架構。
+- 原始實體層數據（I/Q samples、CSI）在 PHY 層即被丟棄  
+- 僅保留低維度標量特徵（如 RTOA）  
+- 無法支援高精度感測（ISAC）與 AI 推論  
 
-4. **資源衝突問題**  
-   通訊與感測共享 GPU / NPU 等加速資源，  
-   需要避免彼此干擾並進行動態分配。
+> **核心問題：**  
+> 現有 RAN 架構缺乏對「原始實體層數據」的即時存取能力，  
+> 導致無法實現可程式化的感測與推論功能  
 
 ---
 
-### 輸入（Inputs, I/P）
+#### 2. 系統輸入與輸出（Inputs / Outputs）
 
-系統運作所需的關鍵輸入包括：
+#### (1) Inputs
 
-1. **實體層數據（PHY/MAC Data）**  
-   - I/Q 樣本  
-   - 通道狀態資訊（CSI）  
-   - 探測參考信號（SRS）
+- **PHY/MAC 數據**
+  - I/Q samples  
+  - CSI  
+  - SRS  
 
-2. **營運商意圖（Operator Intent）**  
-   - 例如：啟用無人機偵測、環境感測等服務
+- **Operator Intent**
+  - 無人機偵測、環境感測等  
 
-3. **站點遙測資訊（Site Telemetry）**  
-   - 無線電配置  
-   - 計算資源（GPU / NPU 使用狀況）  
-   - 環境回饋資訊  
+- **Network Telemetry**
+  - RU/DU 設定  
+  - GPU/NPU 使用狀況  
 
-4. **AI 訓練資料（Training Data）**  
-   - 用於模型訓練與更新的感測資料集  
-
----
-
-### 輸出（Outputs, O/P）
-
-系統處理後產生的結果包括：
-
-1. **感測結果（Sensing Outputs）**  
-   - 目標偵測（如物體 / 無人機）  
-   - 測距與定位資訊  
-   - 頻譜感測結果  
-
-2. **多節點融合推論（Network-level Inference）**  
-   - 物體追蹤軌跡  
-   - 環境地圖  
-   - 事件偵測通知  
-
-3. **通訊優化回饋（Communication Optimization）**  
-   - 波束選擇（Beam Selection）  
-   - 通道估計改善  
-   - 排程最佳化  
-
-4. **模型生命週期產出（Model Outputs）**  
-   - 已訓練與驗證的 AI 模型  
-   - 存放於模型目錄（Model Catalog）供部署使用  
+- **Training Data**
+  - AI 模型訓練資料  
 
 ---
 
-### 系統架構流程（System Architecture Flow）
+#### (2) Outputs
 
-整體架構為一個分層式處理系統：
+- **Sensing Results**
+  - 目標偵測  
+  - 距離／速度估測  
 
-#### 1. 邊緣層（Edge Layer：dApps + E3）
-- 位於 DU 附近  
-- 透過 E3 介面取得 I/Q 與 CSI  
+- **Inference Results**
+  - 物體分類  
+  - 追蹤  
+
+- **Network Optimization**
+  - Beam selection  
+  - 資源配置  
+
+- **Model Outputs**
+  - 訓練完成模型  
+  - 部署策略  
+
+---
+
+#### 3. 提出之系統架構（Proposed Architecture）
+
+為解決上述問題，論文提出一個分層式架構：   
+
+              ┌──────────────┐
+              │   SMO Layer  │
+              │ (Orchestration) │
+              └──────────────┘
+                     ↑
+              ┌──────────────┐
+              │   RIC Layer  │
+              │ (xApps/rApps)│
+              └──────────────┘
+                      ↑  
+    UE → gNB → DU → dApps (Edge Layer)  
+    ↑
+    E3 Interface
+
+
+---
+
+#### 4. 核心設計（Key Components）
+
+#### (1) E3 Interface
+
+- 提供高頻寬（Gbps）資料傳輸  
+- 支援原始 I/Q、CSI 存取  
+- 解決 E2 無法傳輸感測數據的問題  
+
+---
+
+#### (2) dApps（Edge Layer）
+
+- 部署於 DU 附近  
 - 執行即時（sub-ms）推論與感測  
-
-#### 2. 控制層（Control Layer：xApps / rApps）
-- 負責多節點協調  
-- 執行資源分配與策略優化  
-- 輸出跨站點融合結果  
-
-#### 3. 編排層（Orchestration Layer：SMO + ISAC Orchestrator）
-- 負責模型與服務生命週期管理  
-- 根據營運商意圖部署 AI 模型  
-- 決定任務在哪些站點執行  
+- 支援可程式化（programmable）部署  
 
 ---
 
-### 系統目標
+#### (3) Hierarchical Control
 
-在共享 RAN 基礎設施下，同時達成：
+- **Edge（dApps）**：即時推論  
+- **RIC**：多節點融合  
+- **SMO**：模型與服務管理  
 
-- 即時推論（Real-time Inference）  
-- 高精度感測（Accurate Sensing）  
-- 高效通訊（Efficient Communication）  
+---
 
-### 簡化系統流程圖
+#### 5. 系統流程（Workflow）
 
-UE / 感測訊號  
-→ RAN（I/Q、CSI 收集）  
-→ Edge dApps（即時推論）  
-→ RIC（多節點融合）  
-→ SMO（模型部署）  
-→ 輸出（感測 + 推論 + 通訊優化）
+UE Signal
+→ RAN (I/Q, CSI)
+→ E3 Interface
+→ dApps (Real-time Inference)
+→ RIC (Fusion)
+→ SMO (Model Management)
+→ Outputs
+
+
+---
+
+#### 6. 系統目標（Objectives）
+
+- **Low Latency**：sub-ms inference  
+- **High Accuracy**：完整訊號資訊  
+- **Programmability**：動態部署  
+- **Resource Efficiency**：共享資源  
+
+---
+
+#### 7. 小結（Key Insight）
+
+> 本論文透過引入 E3 介面與 edge dApps，  
+> 使系統能直接存取原始實體層數據，  
+> 並在 RAN 中實現可程式化的感測與 AI 推論。
+
 ---
 
 ## 5. 提出方法（Proposed Method）與效能驗證（Evaluation）
